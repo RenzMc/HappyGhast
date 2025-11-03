@@ -14,7 +14,6 @@ use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use pocketmine\network\mcpe\protocol\SetActorLinkPacket;
-use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
 use pocketmine\network\mcpe\protocol\types\entity\EntityLink;
 use pocketmine\player\Player;
 use pocketmine\math\Vector3;
@@ -26,8 +25,6 @@ class RidingManager implements Listener {
     private Main $plugin;
     private array $despawnMode = [];
     private array $riding = [];
-    private array $prevGravity = [];
-    private array $prevHasGravity = [];
 
     public function __construct(Main $plugin) {
         $this->plugin = $plugin;
@@ -82,27 +79,6 @@ class RidingManager implements Listener {
         foreach ($entity->getWorld()->getPlayers() as $viewer) {
             $viewer->getNetworkSession()->sendDataPacket($packet);
         }
-        $entityHeight = $entity->getSize()->getHeight();
-        $index = array_search($player->getId(), $entity->getPassengerIds(), true);
-        $index = ($index === false) ? 0 : (int)$index;
-        $passengerStackOffset = $index * 0.3;
-        $topMargin = 0.6;
-        $yOffset = $entityHeight + $topMargin + $passengerStackOffset;
-        $targetPos = $entity->getLocation()->add(0, $yOffset, 0);
-
-        $this->prevGravity[$player->getName()] = $player->getGravity();
-        $this->prevHasGravity[$player->getName()] = $player->hasGravity();
-        $player->setHasGravity(false);
-        $player->setGravity(0.0);
-
-        $player->teleport($targetPos);
-        $motion = $entity->getMotion();
-        $player->setMotion($motion);
-        $tick = $this->plugin->getServer()->getTick();
-        $motionPacket = SetActorMotionPacket::create($entity->getId(), $motion, $tick);
-        foreach ($entity->getWorld()->getPlayers() as $viewer) {
-            $viewer->getNetworkSession()->sendDataPacket($motionPacket);
-        }
         return true;
     }
 
@@ -126,19 +102,6 @@ class RidingManager implements Listener {
             foreach ($entity->getWorld()->getPlayers() as $viewer) {
                 $viewer->getNetworkSession()->sendDataPacket($packet);
             }
-            $player->setMotion(new Vector3(0.0, 0.0, 0.0));
-        }
-        if (isset($this->prevHasGravity[$player->getName()])) {
-            $player->setHasGravity((bool)$this->prevHasGravity[$player->getName()]);
-            unset($this->prevHasGravity[$player->getName()]);
-        } else {
-            $player->setHasGravity(true);
-        }
-        if (isset($this->prevGravity[$player->getName()])) {
-            $player->setGravity((float)$this->prevGravity[$player->getName()]);
-            unset($this->prevGravity[$player->getName()]);
-        } else {
-            $player->setGravity(0.08);
         }
         unset($this->riding[$player->getName()]);
         $player->sendMessage("§aYou dismounted from the Happy Ghast!");
@@ -188,8 +151,10 @@ class RidingManager implements Listener {
         $topMargin = 0.6;
         $yOffset = $entityHeight + $topMargin + $passengerStackOffset;
         if (!$isDriver) {
-            $motion = $entity->getMotion();
-            $player->setMotion($motion);
+            $targetPos = $entity->getLocation()->add(0, $yOffset, 0);
+            if ($player->getLocation()->distance($targetPos) > 0.6) {
+                $player->teleport($targetPos);
+            }
             return;
         }
         $analog = sqrt($moveX * $moveX + $moveZ * $moveZ);
@@ -209,11 +174,9 @@ class RidingManager implements Listener {
         }
         $newMotion = $horizontal->addVector(new Vector3(0.0, $vertical, 0.0));
         $entity->setMotion($newMotion);
-        $player->setMotion($newMotion);
-        $tick = $this->plugin->getServer()->getTick();
-        $motionPacket = SetActorMotionPacket::create($entity->getId(), $newMotion, $tick);
-        foreach ($entity->getWorld()->getPlayers() as $viewer) {
-            $viewer->getNetworkSession()->sendDataPacket($motionPacket);
+        $targetPos = $entity->getLocation()->add(0, $yOffset, 0);
+        if ($player->getLocation()->distance($targetPos) > 0.6) {
+            $player->teleport($targetPos);
         }
     }
 
@@ -277,19 +240,6 @@ class RidingManager implements Listener {
                 }
                 if (isset($this->riding[$passenger->getName()])) {
                     unset($this->riding[$passenger->getName()]);
-                }
-                $passenger->setMotion(new Vector3(0.0, 0.0, 0.0));
-                if (isset($this->prevHasGravity[$passenger->getName()])) {
-                    $passenger->setHasGravity((bool)$this->prevHasGravity[$passenger->getName()]);
-                    unset($this->prevHasGravity[$passenger->getName()]);
-                } else {
-                    $passenger->setHasGravity(true);
-                }
-                if (isset($this->prevGravity[$passenger->getName()])) {
-                    $passenger->setGravity((float)$this->prevGravity[$passenger->getName()]);
-                    unset($this->prevGravity[$passenger->getName()]);
-                } else {
-                    $passenger->setGravity(0.08);
                 }
             }
         }
