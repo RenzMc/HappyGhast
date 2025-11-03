@@ -1,0 +1,10 @@
+name: HappyGhast
+author: Renz
+version: 0.0.1
+main: Renz\HappyGhast\Main
+api: 5.0.0
+
+permissions:
+  happyghast.command:
+    description: "Allows use of /happyghast command"
+    default: true
