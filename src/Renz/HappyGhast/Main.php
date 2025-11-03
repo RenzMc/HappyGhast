@@ -10,8 +10,10 @@ use pocketmine\event\Listener;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\plugin\PluginBase;
+use pocketmine\player\Player;
 use pocketmine\world\World;
 use Renz\HappyGhast\command\HappyGhastCommand;
+use Renz\HappyGhast\command\GhastDismountCommand;
 use Renz\HappyGhast\entity\HappyGhastEntity;
 use Renz\HappyGhast\manager\RidingManager;
 
@@ -25,6 +27,8 @@ class Main extends PluginBase implements Listener {
                 $this->getServer()->getPluginManager()->registerEvents($this->ridingManager, $this);
                 
                 $this->getServer()->getCommandMap()->register("happyghast", new HappyGhastCommand($this));
+
+                $this->getServer()->getCommandMap()->register("ghastdismount", new GhastDismountCommand($this));
                 
                 EntityFactory::getInstance()->register(
                         HappyGhastEntity::class,
@@ -42,7 +46,7 @@ class Main extends PluginBase implements Listener {
                 $entity = $event->getEntity();
                 $damager = $event->getDamager();
                 
-                if ($entity instanceof HappyGhastEntity && $damager instanceof \pocketmine\player\Player) {
+                if ($entity instanceof HappyGhastEntity && $damager instanceof Player) {
                         if ($this->ridingManager->isInDespawnMode($damager)) {
                                 $this->ridingManager->removeAllPassengers($entity);
                                 $entity->flagForDespawn();

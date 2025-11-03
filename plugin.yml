@@ -8,3 +8,6 @@ permissions:
   happyghast.command:
     description: "Allows use of /happyghast command"
     default: true
+  happyghast.dismount:
+    description: "Allows use of /ghastdismount command"
+    default: true
